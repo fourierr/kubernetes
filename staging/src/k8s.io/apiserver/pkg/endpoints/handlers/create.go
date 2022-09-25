@@ -43,12 +43,13 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/util/dryrun"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
+	"k8s.io/klog/v2"
 )
 
 var namespaceGVR = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}
 
+// 与etcd交互流程
 func createHandler(r rest.NamedCreater, scope *RequestScope, admit admission.Interface, includeName bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// For performance tracking purposes.
@@ -87,6 +88,7 @@ func createHandler(r rest.NamedCreater, scope *RequestScope, admit admission.Int
 		}
 
 		gv := scope.Kind.GroupVersion()
+		// // 1、得到合适的SerializerInfo
 		s, err := negotiation.NegotiateInputSerializer(req, false, scope.Serializer)
 		if err != nil {
 			scope.err(err, w, req)
@@ -102,6 +104,7 @@ func createHandler(r rest.NamedCreater, scope *RequestScope, admit admission.Int
 
 		options := &metav1.CreateOptions{}
 		values := req.URL.Query()
+		// 2、找到合适的 decoder
 		if err := metainternalversionscheme.ParameterCodec.DecodeParameters(values, scope.MetaGroupVersion, options); err != nil {
 			err = errors.NewBadRequest(err.Error())
 			scope.err(err, w, req)
@@ -125,6 +128,7 @@ func createHandler(r rest.NamedCreater, scope *RequestScope, admit admission.Int
 
 		decoder := scope.Serializer.DecoderToVersion(decodeSerializer, scope.HubGroupVersion)
 		trace.Step("About to convert to expected version")
+		// 3、decoder 解码
 		obj, gvk, err := decoder.Decode(body, &defaultGVK, original)
 		if err != nil {
 			strictError, isStrictError := runtime.AsStrictDecodingError(err)
@@ -175,6 +179,7 @@ func createHandler(r rest.NamedCreater, scope *RequestScope, admit admission.Int
 		}
 
 		trace.Step("About to store object in database")
+		// 4、执行 kube-apiserver 启动时加载的 admission-plugins（webhook、validation）
 		admissionAttributes := admission.NewAttributesRecord(obj, nil, scope.Kind, namespace, name, scope.Resource, scope.Subresource, admission.Create, options, dryrun.IsDryRun(options.DryRun), userInfo)
 		requestFunc := func() (runtime.Object, error) {
 			return r.Create(
@@ -187,6 +192,7 @@ func createHandler(r rest.NamedCreater, scope *RequestScope, admit admission.Int
 		}
 		// Dedup owner references before updating managed fields
 		dedupOwnerReferencesAndAddWarning(obj, req.Context(), false)
+		// 5、存入etcd（Create方法由每个Storage对象自己实现）
 		result, err := finisher.FinishRequest(ctx, func() (runtime.Object, error) {
 			if scope.FieldManager != nil {
 				liveObj, err := scope.Creater.New(scope.Kind)

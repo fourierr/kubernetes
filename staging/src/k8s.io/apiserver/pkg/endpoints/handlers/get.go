@@ -81,6 +81,8 @@ func getResourceHandler(scope *RequestScope, getter getterFunc) http.HandlerFunc
 	}
 }
 
+// todo fourier
+// get请求访问入口
 // GetResource returns a function that handles retrieving a single resource from a rest.Storage object.
 func GetResource(r rest.Getter, scope *RequestScope) http.HandlerFunc {
 	return getResourceHandler(scope,

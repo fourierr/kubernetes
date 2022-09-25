@@ -708,7 +708,7 @@ func (s *GenericAPIServer) InstallLegacyAPIGroup(apiPrefix string, apiGroupInfo 
 	if err != nil {
 		return fmt.Errorf("unable to get openapi models: %v", err)
 	}
-
+	// 为每一个 API resource 调用 apiGroupVersion.InstallREST 添加路由
 	if err := s.installAPIResources(apiPrefix, apiGroupInfo, openAPIModels); err != nil {
 		return err
 	}

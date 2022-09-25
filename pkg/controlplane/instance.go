@@ -508,6 +508,7 @@ func labelAPIServerHeartbeat(lease *coordinationapiv1.Lease) error {
 
 // InstallLegacyAPI will install the legacy APIs for the restStorageProviders if they are enabled.
 func (m *Instance) InstallLegacyAPI(c *completedConfig, restOptionsGetter generic.RESTOptionsGetter) error {
+	// NewLegacyRESTStorage创建多种资源的 Storage对象
 	legacyRESTStorageProvider := corerest.LegacyRESTStorageProvider{
 		StorageFactory:              c.ExtraConfig.StorageFactory,
 		ProxyTransport:              c.ExtraConfig.ProxyTransport,
@@ -539,6 +540,10 @@ func (m *Instance) InstallLegacyAPI(c *completedConfig, restOptionsGetter generi
 	m.GenericAPIServer.AddPostStartHookOrDie(controllerName, bootstrapController.PostStartHook)
 	m.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, bootstrapController.PreShutdownHook)
 
+	//–> installAPIResources （为每一个 API resource 调用 apiGroupVersion.InstallREST 添加路由）
+	//–> apiGroupVersion.InstallREST （将 restful.WebServic 对象添加到 container 中）
+	//–> installer.Install（返回最终的 restful.WebService 对象）
+	//–> registerResourceHandlers（通过go-restful框架实现路由和对应handler处理逻辑的绑定）
 	if err := m.GenericAPIServer.InstallLegacyAPIGroup(genericapiserver.DefaultLegacyAPIPrefix, &apiGroupInfo); err != nil {
 		return fmt.Errorf("error in registering group versions: %v", err)
 	}
