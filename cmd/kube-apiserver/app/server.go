@@ -125,7 +125,7 @@ cluster's shared state through which all other components interact.`,
 			if errs := completedOptions.Validate(); len(errs) != 0 {
 				return utilerrors.NewAggregate(errs)
 			}
-			//
+			// todo fourier step02 通过cobra启动
 			return Run(completedOptions, genericapiserver.SetupSignalHandler())
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -160,25 +160,25 @@ func Run(completeOptions completedServerRunOptions, stopCh <-chan struct{}) erro
 
 	klog.InfoS("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
 
-	//创建 apiservers connected via delegation
+	// todo fourier step03 创建 apiservers 包括APIExtensionsServer、KubeAPIServer、AggregatorServer)，分别服务于 CRD(用户自定义资源)、K8s API(内置资源)、API Service(API 扩展资源) 对应的资源请求
 	server, err := CreateServerChain(completeOptions)
 	if err != nil {
 		return err
 	}
 
-	// 运行前准备（健康检查、存活检查和OpenAPI路由的注册）
+	// todo fourier step04 运行前准备（健康检查、存活检查和OpenAPI路由的注册）
 	prepared, err := server.PrepareRun()
 	if err != nil {
 		return err
 	}
-	// 启动安全的http server提供服务,
+	// todo fourier step05 启动安全的http server提供服务,
 	// 调用位置在PrepareRun设置，具体是这里func (s preparedGenericAPIServer) Run(stopCh <-chan struct{}) error {
 	return prepared.Run(stopCh)
 }
 
 // CreateServerChain creates the apiservers connected via delegation.
 func CreateServerChain(completedOptions completedServerRunOptions) (*aggregatorapiserver.APIAggregator, error) {
-	//创建 KubeAPIServer 所需要的配置（apiServer启动参数配置、分配service的ip、初始化认证授权配置）
+	// step03-01 初始化创建 KubeAPIServer 所需要的配置（apiServer启动参数配置、注册指标、ca配置、初始化认证授权配置等）
 	kubeAPIServerConfig, serviceResolver, pluginInitializer, err := CreateKubeAPIServerConfig(completedOptions)
 	if err != nil {
 		return nil, err
@@ -193,13 +193,13 @@ func CreateServerChain(completedOptions completedServerRunOptions) (*aggregatora
 	}
 
 	notFoundHandler := notfoundhandler.New(kubeAPIServerConfig.GenericConfig.Serializer, genericapifilters.NoMuxAndDiscoveryIncompleteKey)
-	//创建 apiExtensionsServer 实例
+	// step03-02 创建 apiExtensionsServer 实例,服务于 CRD(用户自定义资源)
 	apiExtensionsServer, err := createAPIExtensionsServer(apiExtensionsConfig, genericapiserver.NewEmptyDelegateWithCustomHandler(notFoundHandler))
 	if err != nil {
 		return nil, err
 	}
 
-	// 创建 kubeAPIServer 实例
+	// step03-03 创建 kubeAPIServer 实例, 用于K8s API(内置资源)
 	kubeAPIServer, err := CreateKubeAPIServer(kubeAPIServerConfig, apiExtensionsServer.GenericAPIServer)
 	if err != nil {
 		return nil, err
@@ -210,6 +210,7 @@ func CreateServerChain(completedOptions completedServerRunOptions) (*aggregatora
 	if err != nil {
 		return nil, err
 	}
+	// step03-04 创建AggregatorServer，用于API Service(API 扩展资源) 对应的资源请求
 	aggregatorServer, err := createAggregatorServer(aggregatorConfig, kubeAPIServer.GenericAPIServer, apiExtensionsServer.Informers)
 	if err != nil {
 		// we don't need special handling for innerStopCh because the aggregator server doesn't create any go routines

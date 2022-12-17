@@ -29,7 +29,7 @@ import (
 	"k8s.io/kubernetes/cmd/kube-apiserver/app"
 )
 
-// k8s apiserver的启动
+// todo fourier step01 k8s apiserver的启动
 func main() {
 	command := app.NewAPIServerCommand()
 	code := cli.Run(command)

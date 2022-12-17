@@ -456,6 +456,7 @@ func (s *GenericAPIServer) PrepareRun() preparedGenericAPIServer {
 //	                 listenerStoppedCh
 //	                           |
 //	HTTPServerStoppedListening (httpServerStoppedListeningCh)
+// todo fourier step05-01 启动http服务
 func (s preparedGenericAPIServer) Run(stopCh <-chan struct{}) error {
 	delayedStopCh := s.lifecycleSignals.AfterShutdownDelayDuration
 	shutdownInitiatedCh := s.lifecycleSignals.ShutdownInitiated
@@ -530,7 +531,7 @@ func (s preparedGenericAPIServer) Run(stopCh <-chan struct{}) error {
 			return fmt.Errorf("failed to run the audit backend: %v", err)
 		}
 	}
-
+	// todo fourier step05-02 非阻塞式运行
 	stoppedCh, listenerStoppedCh, err := s.NonBlockingRun(stopHttpServerCh, shutdownTimeout)
 	if err != nil {
 		return err
